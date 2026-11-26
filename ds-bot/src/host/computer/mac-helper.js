@@ -9,7 +9,7 @@ import { join } from 'node:path'
 import { promisify } from 'node:util'
 
 const run = promisify(execFile)
-const HELPER_PACKAGE = ['node_modules', '@deepseek-ai', 'dsh-experimental-cua-macos']
+const HELPER_PACKAGE = ['node_modules', '@deepseek-ai', 'dsh-cua-macos']
 const HELPER_APP = 'DSH Computer Use.app'
 const HELPER_EXECUTABLE = join(HELPER_APP, 'Contents', 'MacOS', 'dsh-cua-native')
 

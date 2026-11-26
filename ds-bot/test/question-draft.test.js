@@ -912,11 +912,12 @@ test('pinned DSH client UI packages satisfy the sessionStatus, PendingQuestion, 
   const { join } = await import('node:path')
   const harnessPkg = (pkg, rel) => readFileSync(join(PLUGIN_DIR, 'dev', 'harness', 'node_modules', '@deepseek-ai', pkg, rel), 'utf8')
   const sessionTypes = harnessPkg('dsh-client-ui-session', 'lib/types/client/index.d.ts')
+  const statusTypes = harnessPkg('dsh-client-ui-session-status', 'lib/types/client/status.d.ts')
   const questionTypes = harnessPkg('dsh-client-ui-user-questions', 'lib/types/client/contract/slots.d.ts')
   const inputTypes = harnessPkg('dsh-client-ui-conversation', 'lib/types/client/contract/input.d.ts')
 
   // SessionStatus exposes the single highest-precedence pendingInteraction.
-  assert.match(sessionTypes, /readonly pendingInteraction: SessionPendingInteraction \| undefined;/)
+  assert.match(statusTypes, /readonly pendingInteraction: SessionPendingInteraction \| undefined;/)
   assert.match(sessionTypes, /readonly key: string;/)
   assert.match(sessionTypes, /readonly kind: string;/)
 

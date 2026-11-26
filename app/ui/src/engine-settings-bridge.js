@@ -109,6 +109,14 @@ export function useDshSettingsBridge(registry = defaultSlots, extraProps = {}) {
       ownWindow: true,
       sections,
       items,
+      renderFactorySlot(name, { id, ...props } = {}) {
+        if (name !== 'settings.section.view') return null
+        const entry = visibleSectionEntries.find(section => section.id === id)
+        if (!entry) return null
+        return renderSlotComponent(entry.component,
+          { ...props, readOnly, surfaceMode, onRestoredSession, onStartPresetCreator },
+          `${SETTINGS_SECTION_SLOT}:${id}`, entry.meta?.sync !== true)
+      },
       renderSlot(name, props = {}, options = {}) {
         const list = byName[name] ?? []
         const { only, fallback = null } = options

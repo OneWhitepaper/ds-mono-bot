@@ -7,6 +7,8 @@ import { pathToFileURL } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
 import * as connectionPlugin from '@deepseek-ai/dsh-client-connection'
 import WebServer from '@deepseek-ai/dsh-host-webserver'
+import * as tokenPlugin from '@deepseek-ai/dsh-host-authentication-token'
+import { engineLaunchUrl } from '../src/launch-url.mjs'
 import * as enginePlugin from '../engine/index.js'
 
 const { createUiResource, resolveDistDir, shouldUseNativeDirectoryPicker } = enginePlugin
@@ -33,45 +35,28 @@ describe('dsbot-engine UI static resource', () => {
   after(() => { rmSync(root, { recursive: true, force: true }) })
 
   test('gates index & HTML requests case-insensitively and blocks NTFS aliases / symlink escapes', async () => {
-    let authCalls = 0
-    const resource = createUiResource({
-      distDir,
-      authorizeIndex: (request) => {
-        authCalls += 1
-        const url = new URL(request.url)
-        if (url.searchParams.get('token') === 'good') {
-          return new Response(null, { status: 302, headers: { location: '/', 'set-cookie': 'dsh=1; HttpOnly' } })
-        }
-        if (request.headers.get('cookie') === 'dsh=1') return undefined
-        return new Response('unauthorized', { status: 401 })
-      },
-    })
+    const resource = createUiResource({ distDir })
+    const owner = { principal: { kind: 'owner' } }
 
-    // Unauthenticated index -> 401.
     const unauth = await resource(new Request('http://127.0.0.1:4123/'))
     assert.equal(unauth.status, 401)
-    assert.equal(authCalls, 1)
-
-    // Launch token exchange -> 302 with cookie.
-    const exchange = await resource(new Request('http://127.0.0.1:4123/?token=good'))
-    assert.equal(exchange.status, 302)
-    assert.equal(exchange.headers.get('location'), '/')
-    assert.equal(exchange.headers.get('set-cookie'), 'dsh=1; HttpOnly')
+    // Only the Token provider exchanges login queries; a resource alone cannot admit one.
+    assert.equal((await resource(new Request('http://127.0.0.1:4123/?token=good'))).status, 401)
 
     // Authenticated index -> 200 HTML, no-store, nosniff.
-    const indexRes = await resource(new Request('http://127.0.0.1:4123/', { headers: { cookie: 'dsh=1' } }))
+    const indexRes = await resource(new Request('http://127.0.0.1:4123/'), owner)
     assert.equal(indexRes.status, 200)
     assert.equal(indexRes.headers.get('content-type'), 'text/html; charset=utf-8')
     assert.equal(indexRes.headers.get('cache-control'), 'no-store')
     assert.equal(indexRes.headers.get('x-content-type-options'), 'nosniff')
     assert.match(await indexRes.text(), /DS Bot/)
 
-    // Direct /index.html and case variants (/Index.html, /INDEX.HTML) MUST run authorizeIndex (never fall through).
+    // Direct /index.html and case variants (/Index.html, /INDEX.HTML) must require an admitted Peer.
     for (const path of ['/index.html', '/Index.html', '/INDEX.HTML', '/other.html']) {
       const res = await resource(new Request(`http://127.0.0.1:4123${path}`))
       assert.equal(res.status, 401, `${path} without auth must return 401`)
     }
-    const authCase = await resource(new Request('http://127.0.0.1:4123/Index.html', { headers: { cookie: 'dsh=1' } }))
+    const authCase = await resource(new Request('http://127.0.0.1:4123/Index.html'), owner)
     assert.equal(authCase.status, 200)
     assert.equal(authCase.headers.get('cache-control'), 'no-store')
 
@@ -94,13 +79,13 @@ describe('dsbot-engine UI static resource', () => {
     }
 
     // HEAD returns headers and an empty body.
-    const headRes = await resource(new Request('http://127.0.0.1:4123/', { method: 'HEAD', headers: { cookie: 'dsh=1' } }))
+    const headRes = await resource(new Request('http://127.0.0.1:4123/', { method: 'HEAD' }), owner)
     assert.equal(headRes.status, 200)
     assert.equal(await headRes.text(), '')
   })
 
   test('serves static assets with MIME types, weak ETags, RFC 9110 304 lists, and blocks traversal/bad methods', async () => {
-    const resource = createUiResource({ distDir, authorizeIndex: () => undefined })
+    const resource = createUiResource({ distDir })
 
     const jsRes = await resource(new Request('http://127.0.0.1:4123/assets/app.js'))
     assert.equal(jsRes.status, 200)
@@ -178,8 +163,9 @@ describe('dsbot-engine UI static resource', () => {
     try {
       const ws = ctx.plugin(WebServer, { host: '127.0.0.1', port: 0 })
       const conn = ctx.plugin(connectionPlugin, { trustedHosts: [] })
+      const token = ctx.plugin(tokenPlugin, { cookieMaxAgeDays: 30 })
       const eng = ctx.plugin(enginePlugin, { distDir })
-      await Promise.all([ws.await(), conn.await(), eng.await()])
+      await Promise.all([ws.await(), conn.await(), token.await(), eng.await()])
       // Wait one turn for child plugin (`NativeDirectoryPicker`/`BrowseDirectoryPicker`) mounted inside `eng`.
       await new Promise(resolve => setImmediate(resolve))
 
@@ -198,7 +184,7 @@ describe('dsbot-engine UI static resource', () => {
         }),
       })
       try {
-        const launchUrl = ctx.connection.authenticatedUrl(`http://127.0.0.1:${String(ctx.webServer.port)}`)
+        const launchUrl = engineLaunchUrl(ctx, ctx.webServer)
         const origin = new URL(launchUrl).origin
 
         // 1. Unauthenticated / and /Index.html both return 401.

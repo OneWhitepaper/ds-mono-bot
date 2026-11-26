@@ -237,6 +237,7 @@ async function bootClientIndex({ rpc, dsBotApp, storage = makeStorage(), initial
         slotsMap.set(spec.name, list)
         return () => {}
       },
+      registerFactory: () => () => {},
       spec: () => ({}),
     },
     sessions: {

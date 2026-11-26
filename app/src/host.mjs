@@ -14,6 +14,7 @@ import { reconcileGoal } from './goal-patch.mjs'
 import { reconcileOfficeRuntime } from './office-patch.mjs'
 import { reconcileSearchSelector } from './search-patch.mjs'
 import { unreadableSessions } from './session-check.mjs'
+import { engineLaunchUrl } from './launch-url.mjs'
 
 installSocketTosGuard()
 
@@ -79,8 +80,8 @@ async function main() {
   // process attaches the engine log tail — the real cause — to this message.
   const missing = ['sessionController', 'workspaceRegistry'].filter(name => ctx.get(name) === undefined)
   if (missing.length > 0) throw new Error(`The profile in ${profile.dir} did not start ${missing.join(', ')}; the engine log has the cause`)
-  const url = connection.authenticatedUrl(`http://127.0.0.1:${String(webServer.port)}`)
-  // The window is the owner's page; DSH 0.2.2 builds the injections for the Peer they serve.
+  const url = engineLaunchUrl(ctx, webServer)
+  // The window is the owner's page; the trusted in-process Peer supplies its injections.
   await send({ type: 'ready', url, injections: webServer.collectIndexInjections(connection.browserPeer) })
 }
 

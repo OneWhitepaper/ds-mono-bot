@@ -9,6 +9,7 @@ import { test } from 'node:test'
 import { Context } from '@deepseek-ai/cordis'
 import LocalJobRegistry from '@deepseek-ai/dsh-jobs-local'
 import { createScope } from '@deepseek-ai/dsh-scope'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import * as toolJobs from '@deepseek-ai/dsh-tool-jobs'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
@@ -2080,6 +2081,7 @@ for (const result of ['calculated total: 431', '', undefined]) {
     const agents = new Map()
     jobsCtx.provide('agents', agents)
     t.after(() => jobsCtx.fiber.dispose())
+    await jobsCtx.plugin(SessionProjectionRegistry)
     await jobsCtx.plugin(SystemPrompt)
     await jobsCtx.plugin(ToolRuntime)
     await jobsCtx.plugin(LocalJobRegistry)
@@ -2145,6 +2147,7 @@ test('reply origin: a background job from one IM turn must not be reported to th
   const agents = new Map()
   jobsCtx.provide('agents', agents)
   t.after(() => jobsCtx.fiber.dispose())
+  await jobsCtx.plugin(SessionProjectionRegistry)
   await jobsCtx.plugin(SystemPrompt)
   await jobsCtx.plugin(ToolRuntime)
   await jobsCtx.plugin(LocalJobRegistry)

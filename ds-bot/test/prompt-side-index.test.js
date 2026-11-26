@@ -7,6 +7,7 @@ import { test } from 'node:test'
 import { Context } from '@deepseek-ai/cordis'
 import { createToolResultMessage, LlmError, ToolCallId } from '@deepseek-ai/dsh-llm'
 import { Session } from '@deepseek-ai/dsh-session'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { defineTool } from '@deepseek-ai/dsh-tools'
 import { mountBrowserPlugin } from '../src/host/browser/mount.js'
@@ -345,6 +346,7 @@ test('P0-2: side.js plugin unload between persist() and complete() returns entry
 test('P1-2: real DSH SystemPrompt places shared bot-team-rules (640) and DSH static sections (800..10200) ahead of per-Bot tail (10300..10320)', async (t) => {
   const home = mkdtempSync(join(tmpdir(), 'dsb-p12-order-'))
   const ctx = new Context()
+  await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SystemPrompt)
   t.after(async () => {
     await ctx.fiber.dispose()
@@ -451,6 +453,7 @@ test('P1-2: real DSH SystemPrompt places shared bot-team-rules (640) and DSH sta
 test('P1-2: capabilities feature-packs catalog stays byte-identical across MCP mounts with zero volatile tool counts', async (t) => {
   const home = mkdtempSync(join(tmpdir(), 'dsb-p12-caps-'))
   const ctx = new Context()
+  await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SystemPrompt)
   t.after(async () => {
     await ctx.fiber.dispose()
@@ -772,6 +775,7 @@ test('P2-1: time-context.js scans eventsBackwards at most once on cold miss, ref
 
 test('P2-1: browser/mount.js skips already-checked surface nodes in O(1) AND still fixes mid-array surfaceOp:replace nodes', async (t) => {
   const ctx = new Context()
+  await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
   t.after(async () => { await ctx.fiber.dispose() })

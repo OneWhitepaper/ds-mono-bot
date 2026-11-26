@@ -38,8 +38,11 @@
       config:
         trustedHosts: []
 
-    # This package's own plugin (index.js): launch-token exchange and static
-    # asset server for DS Bot's built frontend (app/ui/dist).
+    - id: authentication-token
+      name: '@deepseek-ai/dsh-host-authentication-token'
+
+    # This package's own plugin (index.js): admitted HTML and static assets for
+    # DS Bot's built frontend (app/ui/dist).
     - id: engine-index
       name: dsbot-engine
 

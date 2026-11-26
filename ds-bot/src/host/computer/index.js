@@ -15,7 +15,7 @@ import { output } from '../tools.js'
 
 const REGISTRY_PACKAGE = '@deepseek-ai/dsh-computer-use'
 const PROVIDER_PACKAGES = {
-  darwin: '@deepseek-ai/dsh-experimental-cua-macos',
+  darwin: '@deepseek-ai/dsh-cua-macos',
   win32: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native',
   linux: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native',
 }

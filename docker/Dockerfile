@@ -4,11 +4,11 @@
 # (the web profile with ds-bot installed) that the entrypoint copies into /data
 # on first start. Build context is the repository root:
 #   docker build -f docker/Dockerfile -t ds-bot:local .
-ARG NODE_IMAGE=node:24-bookworm-slim
+ARG NODE_IMAGE=node:24.22.3-bookworm-slim
 FROM ${NODE_IMAGE} AS build
 
 ARG NPM_REGISTRY=https://registry.npmjs.org/
-ARG DSH_VERSION=0.2.2-rc.5
+ARG DSH_VERSION=0.2.3-alpha.2
 
 RUN corepack enable \
     && npm config set registry "$NPM_REGISTRY" --global \

@@ -25,7 +25,7 @@ asarUnpack:
   # The signed "DSH Computer Use" helper and the Cua Driver binaries are programs;
   # inside the asar they would not run, and an ad-hoc re-sign would lose DeepSeek's
   # Developer ID signature (mac.signIgnore below keeps it).
-  - node_modules/@deepseek-ai/dsh-experimental-cua-macos/**
+  - node_modules/@deepseek-ai/dsh-cua-macos/**
   - node_modules/@trycua/cua-driver*/**
 # The Office payload that scripts/prepare-runtime.mjs writes in beforePack (see package.json's
 # `runtime` script). build/ is not in `files`, so nothing of it lands inside the asar.

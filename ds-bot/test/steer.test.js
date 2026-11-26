@@ -5,7 +5,10 @@ import { join, resolve } from 'node:path'
 import { test } from 'node:test'
 import { Context } from '@deepseek-ai/cordis'
 import LocalJobRegistry from '@deepseek-ai/dsh-jobs-local'
+import { createToolResultMessage } from '@deepseek-ai/dsh-llm'
 import { bindScopeParent, createScope } from '@deepseek-ai/dsh-scope'
+import { buildSessionHeader, Session } from '@deepseek-ai/dsh-session'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import * as toolBash from '@deepseek-ai/dsh-tool-bash'
 import * as toolExecutorNative from '@deepseek-ai/dsh-tool-executor-native'
@@ -55,6 +58,17 @@ const shellDef = (name = 'pwsh') => {
 }
 
 const jobsService = (read) => ({ read })
+
+function recordedSession(ctx) {
+  const session = Session.create('dm-a', [], buildSessionHeader('dm-a', { cwd: '/team' }))
+  const append = session.append.bind(session)
+  session.append = (...args) => {
+    const event = append(...args)
+    ctx.emit('session/event', session, event)
+    return event
+  }
+  return session
+}
 
 const start = async ({ services = {}, def = shellDef() } = {}) => {
   const home = mkdtempSync(join(tmpdir(), 'ds-bot-steer-'))
@@ -704,6 +718,7 @@ test('setPrefs validates backgroundAfterSec bounds and integer requirement', asy
 // handling instead of mocking bash's internal behavior.
 async function startRealBash({ approveDelayMs = 0, maxConcurrentJobsPerOwner = 10, delayJobsPlugin = false, wireToolsChange = false, redactSecrets, shellPlugin = toolBash, toolName = 'bash', agentScoped = false, presetParent = false, beforeShadow } = {}) {
   const ctx = new Context()
+  await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(toolExecutorNative)
@@ -817,13 +832,7 @@ async function startRealBash({ approveDelayMs = 0, maxConcurrentJobsPerOwner = 1
     inject: (msg) => { inboxNextStep.push(msg); notices.push({ kind: 'inject', msg }) },
     send() {},
     cancel() {},
-    session: {
-      id: 'dm-a',
-      header: { cwd: '/team' },
-      append(type, data) {
-        ctx.emit('session/event', agent.session, { type, data })
-      },
-    },
+    session: recordedSession(ctx),
   }
   const agentScope = createScope(ctx, agent)
   await agentScope.ctx.plugin({ inject: ['tools'], apply(scoped) { agent.ctx = scoped } })
@@ -1193,26 +1202,26 @@ test('real dsh-tool-bash + dsh-tool-jobs contract: steer detach still notifies a
   await new Promise(r => setTimeout(r, 30))
   const steerMsg = userMessage('hey')
   env.agent.inbox.nextStep.push(steerMsg)
-  env.ctx.emit('session/event', env.agent.session, { type: 'agent/inbox/spliced', data: { target: 'next-step', inserted: [steerMsg] } })
+  env.agent.session.append('agent/inbox/spliced', { target: 'next-step', inserted: [steerMsg] })
   const promoted = await pending
   assert.equal(promoted.kind, 'promoted')
 
   // Model calls job_output(wait:true, timeout_ms:40), which times out while the job is still running.
-  env.agent.session.append('tool/call', { callId: 'call-jo-1', name: 'job_output', arguments: JSON.stringify({ job_id: promoted.jobId, wait: true, timeout_ms: 40 }) })
+  const outputCall = env.agent.session.append('tool/call', { callId: 'call-jo-1', name: 'job_output', arguments: JSON.stringify({ job_id: promoted.jobId, wait: true, timeout_ms: 40 }) })
   const partial = await env.jobOutput().execute(
     { job_id: promoted.jobId, wait: true, timeout_ms: 40 },
     { agent: env.agent, callId: 'call-jo-1', name: 'job_output', signal: AbortSignal.timeout(5000) },
   )
   assert.equal(partial.job.status, 'running')
   env.agent.session.append('tool/result', {
-    message: { toolCallId: 'call-jo-1', isError: false, content: env.jobOutput().output.render({}, partial) },
-  })
+    message: createToolResultMessage({ callId: 'call-jo-1', isError: false, content: env.jobOutput().output.render({}, partial) }),
+  }, { surfaceOp: 'append', sourceEventSeqs: [outputCall.seq] })
 
   // A failed job_kill must not silence the eventual completion notice either.
-  env.agent.session.append('tool/call', { callId: 'call-jk-fail', name: 'job_kill', arguments: JSON.stringify({ job_id: promoted.jobId }) })
+  const killCall = env.agent.session.append('tool/call', { callId: 'call-jk-fail', name: 'job_kill', arguments: JSON.stringify({ job_id: promoted.jobId }) })
   env.agent.session.append('tool/result', {
-    message: { toolCallId: 'call-jk-fail', isError: true, content: [{ type: 'text', text: 'kill failed' }] },
-  })
+    message: createToolResultMessage({ callId: 'call-jk-fail', isError: true, content: [{ type: 'text', text: 'kill failed' }] }),
+  }, { surfaceOp: 'append', sourceEventSeqs: [killCall.seq] })
 
   // Command settles before the 60s native timeout; fallback notice must fire once and redact secrets.
   env.agent.status = 'idle'
@@ -1355,7 +1364,7 @@ test('real dsh-tool-bash + dsh-tool-jobs contract: in-flight job_output(wait:tru
   await new Promise(r => setTimeout(r, 30))
   const steerMsg = userMessage('hey')
   env.agent.inbox.nextStep.push(steerMsg)
-  env.ctx.emit('session/event', env.agent.session, { type: 'agent/inbox/spliced', data: { target: 'next-step', inserted: [steerMsg] } })
+  env.agent.session.append('agent/inbox/spliced', { target: 'next-step', inserted: [steerMsg] })
   const promoted = await pending
   assert.equal(promoted.kind, 'promoted')
 
@@ -1563,6 +1572,7 @@ test('createRuntime with pre-existing live agent: steerShellExecute defers until
   }))
 
   const ctx = new Context()
+  await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(toolExecutorNative)
@@ -1613,12 +1623,7 @@ test('createRuntime with pre-existing live agent: steerShellExecute defers until
     inject() {},
     send() {},
     cancel() {},
-    session: {
-      id: 'dm-a',
-      header: { cwd: '/team' },
-      append(type, data) { ctx.emit('session/event', agent.session, { type, data }) },
-      snapshotEvents: () => [],
-    },
+    session: recordedSession(ctx),
   }
   const agentScope = createScope(ctx, agent)
   await agentScope.ctx.plugin({ inject: ['tools'], apply(scoped) { agent.ctx = scoped } })

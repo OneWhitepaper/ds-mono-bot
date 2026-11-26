@@ -336,12 +336,13 @@ test('SettingsDialog opens on Overview, lists 10 nav groups, and switches discre
       sections: [{ id: 'plugins', label: 'Plugins' }],
       items: [],
       renderSlot: (name, props, opts) => { slotCalls.push({ name, props, opts }); return null },
+      renderFactorySlot: (name, props) => { slotCalls.push({ name, props }); return null },
     }
     const plugTree = renderPage('dsh', 'plugins:web-search', { dsh: dshStub })
     assert.equal(textOf(findAll(plugTree, n => n.type === 'h2')[0]), 'Engine plugins')
     assert.equal(findAll(plugTree, n => n.type === 'button' && n.props?.['aria-label'] === 'Back to Plugins').length, 1)
-    const sectionCall = slotCalls.find(c => c.name === 'settings.section')
-    assert.equal(sectionCall.opts.only, 'plugins')
+    const sectionCall = slotCalls.find(c => c.name === 'settings.section.view')
+    assert.equal(sectionCall.props.id, 'plugins')
     assert.equal(sectionCall.props.subTarget, 'web-search')
 
     // A drilled-down Bot hides the anchors and leads back to Bots.

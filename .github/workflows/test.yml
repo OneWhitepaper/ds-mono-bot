@@ -6,7 +6,7 @@ on:
   pull_request:
   schedule:
     # Daily full cross-platform verification at 19:00 UTC (03:00 +08:00) on the default branch
-    # so heavy packaging, iOS builds, Node 22 and caches stay verified and warm without slowing PRs.
+    # so heavy packaging, iOS builds, Node 26.13.1 and caches stay verified and warm without slowing PRs.
     - cron: '0 19 * * *'
   workflow_dispatch:
 
@@ -28,7 +28,7 @@ jobs:
     outputs:
       full: ${{ steps.filter.outputs.full }}
       ds_bot: ${{ steps.filter.outputs.ds_bot }}
-      node22: ${{ steps.filter.outputs.node22 }}
+      node26: ${{ steps.filter.outputs.node26 }}
       app_unit: ${{ steps.filter.outputs.app_unit }}
       app_package_full: ${{ steps.filter.outputs.app_package_full }}
       app_package_linux: ${{ steps.filter.outputs.app_package_linux }}
@@ -83,7 +83,7 @@ jobs:
 
           if [ "$full" = "true" ]; then
             ds_bot=true
-            node22=true
+            node26=true
             app_unit=true
             app_package_full=true
             app_package_linux=true
@@ -94,7 +94,7 @@ jobs:
             docker=true
           else
             ds_bot=false
-            node22=false
+            node26=false
             app_unit=false
             app_package_full=false
             app_package_linux=false
@@ -116,7 +116,7 @@ jobs:
             # fast Linux/Windows baseline checks and publish :dev on push to dev without using macOS runners.
             if [ "$EVENT" = "push" ]; then
               ds_bot=true
-              node22=true
+              node26=true
               app_unit=true
               app_package_linux=true
               docker=true
@@ -126,7 +126,7 @@ jobs:
           {
             echo "full=$full"
             echo "ds_bot=$ds_bot"
-            echo "node22=$node22"
+            echo "node26=$node26"
             echo "app_unit=$app_unit"
             echo "app_package_full=$app_package_full"
             echo "app_package_linux=$app_package_linux"
@@ -149,8 +149,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, node: 24, browser: true, lint: true }
-          - { os: windows-latest, node: 24 }
+          - { os: ubuntu-latest, node: '24.22.3', browser: true, lint: true }
+          - { os: windows-latest, node: '24.22.3' }
     defaults:
       run:
         shell: bash
@@ -194,10 +194,10 @@ jobs:
         if: matrix.browser
         run: npm run test:browser
 
-  test-node22:
-    name: ubuntu-latest · Node 22
+  test-node26:
+    name: ubuntu-latest · Node 26.13.1
     needs: changes
-    if: needs.changes.outputs.node22 == 'true'
+    if: needs.changes.outputs.node26 == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     defaults:
@@ -208,7 +208,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '26.13.1'
           cache: npm
           cache-dependency-path: |
             ds-bot/package-lock.json
@@ -221,7 +221,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ds-bot/dev/harness/node_modules
-          key: dsh-harness-${{ runner.os }}-${{ runner.arch }}-node22-${{ hashFiles('ds-bot/dev/harness/package.json') }}
+          key: dsh-harness-${{ runner.os }}-${{ runner.arch }}-node26.13.1-${{ hashFiles('ds-bot/dev/harness/package.json') }}
       - name: Install DSH test harness
         if: steps.harness-cache.outputs.cache-hit != 'true'
         run: npm run harness
@@ -234,7 +234,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: '24.22.3'
       # Scan exactly the tracked files, as they would be published.
       - run: mkdir -p "$RUNNER_TEMP/tree" && git archive HEAD | tar -x -C "$RUNNER_TEMP/tree"
       - run: node scripts/scan.mjs "$RUNNER_TEMP/tree"
@@ -254,7 +254,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: '24.22.3'
           cache: npm
           cache-dependency-path: app/package-lock.json
       # The test composes the profile and starts no window, so it needs no Electron binary.
@@ -276,7 +276,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: '24.22.3'
           cache: npm
           cache-dependency-path: |
             mobile/package-lock.json
@@ -305,7 +305,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: '24.22.3'
           cache: npm
           cache-dependency-path: |
             mobile/package-lock.json
@@ -352,7 +352,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: '24.22.3'
           cache: npm
           cache-dependency-path: link/package-lock.json
       - run: npm ci --no-fund --no-audit
@@ -373,7 +373,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: '24.22.3'
           cache: npm
           cache-dependency-path: app/package-lock.json
       # Electron and electron-builder's build tools come from GitHub releases, which sometimes answer
@@ -515,7 +515,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: '24.22.3'
           cache: npm
           cache-dependency-path: app/package-lock.json
       # Electron and electron-builder's build tools come from GitHub releases, which sometimes answer
@@ -587,7 +587,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: '24.22.3'
           cache: npm
           cache-dependency-path: app/package-lock.json
       # Electron and electron-builder's build tools come from GitHub releases, which sometimes answer
@@ -678,7 +678,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: '24.22.3'
       - uses: docker/setup-buildx-action@v3
       - run: docker compose -f docker-compose.yml config --quiet
       - run: docker compose -f docker/compose.yml config --quiet
@@ -724,7 +724,7 @@ jobs:
   # and fails unless every job required for the changed paths passed.
   result:
     name: Test result
-    needs: [changes, test, test-node22, scan, app, mobile, mobile-ios, link, app-package, app-package-macos, app-package-linux, docker]
+    needs: [changes, test, test-node26, scan, app, mobile, mobile-ios, link, app-package, app-package-macos, app-package-linux, docker]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -734,8 +734,8 @@ jobs:
           SCAN_RESULT: ${{ needs.scan.result }}
           RUN_DS_BOT: ${{ needs.changes.outputs.ds_bot }}
           TEST_RESULT: ${{ needs.test.result }}
-          RUN_NODE22: ${{ needs.changes.outputs.node22 }}
-          NODE22_RESULT: ${{ needs.test-node22.result }}
+          RUN_NODE26: ${{ needs.changes.outputs.node26 }}
+          NODE26_RESULT: ${{ needs.test-node26.result }}
           RUN_APP_UNIT: ${{ needs.changes.outputs.app_unit }}
           APP_RESULT: ${{ needs.app.result }}
           RUN_MOBILE: ${{ needs.changes.outputs.mobile }}
@@ -774,7 +774,7 @@ jobs:
           check "changes" "true" "$CHANGES_RESULT"
           check "scan" "true" "$SCAN_RESULT"
           check "test" "$RUN_DS_BOT" "$TEST_RESULT"
-          check "test-node22" "$RUN_NODE22" "$NODE22_RESULT"
+          check "test-node26" "$RUN_NODE26" "$NODE26_RESULT"
           check "app" "$RUN_APP_UNIT" "$APP_RESULT"
           check "mobile" "$RUN_MOBILE" "$MOBILE_RESULT"
           check "mobile-ios" "$RUN_MOBILE_IOS" "$MOBILE_IOS_RESULT"

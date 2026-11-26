@@ -25,14 +25,22 @@ import { settingsPreferences } from './settings-preferences.js'
 // The child slots of the seat, as ui-settings declares their types.
 export const SETTINGS_CHILDREN = {
   'settings.launcher': { kind: 'single', scope: 'root' },
+  'settings.notice': { kind: 'single', scope: 'root' },
   'settings.trigger': { kind: 'single', scope: 'root' },
   'settings.header': { kind: 'single', scope: 'root' },
   'settings.action': { kind: 'list', scope: 'root' },
   'settings.close': { kind: 'single', scope: 'root' },
-  'settings.section': { kind: 'list', scope: 'root' },
   'settings.section.icon': { kind: 'list', scope: 'root', inline: true },
   'settings.onboarding': { kind: 'list', scope: 'root' },
   'settings.general.item': { kind: 'list', scope: 'root' },
+}
+
+export const SETTINGS_SECTION_CHILDREN = {
+  'settings.section': { kind: 'list', scope: 'root' },
+}
+
+export function SettingsSectionView({ id, close, subTarget, renderSlot }) {
+  return renderSlot('settings.section', { close, subTarget }, { only: id })
 }
 
 // DSH's preview notice keeps its acknowledgement in ui-settings-general's own settings,
@@ -200,7 +208,7 @@ export function TriggerContent({ wide }) {
 
 export function SettingsShell(props) {
   const {
-    wide, renderSlot, actions, useUi, useRoster, useUpdate, useSessions,
+    wide, renderSlot, renderFactorySlot, actions, useUi, useRoster, useUpdate, useSessions,
     useSections, useGeneralItems, useOnboardingSteps, useOnboardingRequest,
     useConnectionState, useDesktopUpdate, useSettingsShortcut,
     reconnect, openDesktopUpdate, openOnboarding, finishOnboarding, holdSeat,
@@ -238,8 +246,10 @@ export function SettingsShell(props) {
   // A layout effect, so the Settings dialog changes hands before the next paint.
   useLayoutEffect(() => holdSeat?.(), [])
   const open = settings !== null && settings !== undefined
-  const openSettings = () => actions.openSettings('overview')
+  const openSettings = sectionId => actions.openSettings(...(sectionId === undefined ? ['overview'] : settingsPlace(sectionId)))
   return h(Fragment, null,
+    h('div', { className: 'bt-settings-notice-row', hidden: !wide },
+      h('div', { className: 'bt-settings-notice' }, renderSlot('settings.notice', { openSettings }))),
     h('div', { className: 'bt-settings-row', 'data-rail': wide ? undefined : '' },
       renderSlot('settings.launcher', {
         wide, settingsOpen: open, openSettings, openOnboarding,
@@ -267,7 +277,7 @@ export function SettingsShell(props) {
       onDismiss: () => actions.closeSettings?.(), actions,
     }, createPortal(h(SettingsDialog, {
       page: kept.page, id: kept.id, roster, actions, useUpdate, leaving,
-      dsh: { sections, items, renderSlot, preferences },
+      dsh: { sections, items, renderSlot, renderFactorySlot, preferences },
     }), document.body)) : null,
     step !== undefined ? renderSlot('settings.onboarding', {
       stepId: step.id, explicit: requested !== undefined, complete: () => complete(step.id),
@@ -452,8 +462,15 @@ export function installSettingsShell(ctx, { face, actions, ui, held }) {
         console.warn('[ds-bot] DSH settings shell is on; DS Bot settings show its own pages only', error)
         return () => {}
       }
+      let section
+      try {
+        section = slots.registerFactory({ name: 'settings.section.view', scope: 'root', children: SETTINGS_SECTION_CHILDREN }, SettingsSectionView)
+      } catch (error) {
+        off()
+        throw error
+      }
       const trigger = slots.inject('settings.trigger', () => slots.register({ name: 'settings.trigger' }, TriggerContent))
-      return () => { trigger(); off() }
+      return () => { trigger(); section(); off() }
     }),
   ]
   if (carrier?.protocolVersion === 1) {
@@ -538,6 +555,8 @@ export function installSettingsShell(ctx, { face, actions, ui, held }) {
 export const SETTINGS_SHELL_CSS = `
 .bt-settings-row{display:flex;align-items:center;gap:6px;min-width:0}
 .bt-settings-row[data-rail]{flex-direction:column}
+.bt-settings-notice-row{position:relative;height:0}
+.bt-settings-notice{position:absolute;inset-inline:0;bottom:0;z-index:1}
 .bt-settings-trigger{display:inline-flex;align-items:center;gap:8px;height:32px;min-width:32px;padding:0 8px;border:0;border-radius:8px;background:none;color:var(--bt-ink-2);font:inherit;font-size:13px;cursor:pointer}
 .bt-settings-trigger:hover{background:var(--bt-hover)}
 .bt-settings-trigger svg{width:16px;height:16px;flex:none}

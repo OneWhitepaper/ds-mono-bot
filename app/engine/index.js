@@ -1,6 +1,5 @@
 // The engine's frontend server and host-only directory picker: claims the
-// webserver fallback seat to exchange DSH's one-time launch token for the Host
-// cookie on `/` and serve DS Bot's own built interface (app/ui/dist) on the
+// webserver fallback seat to serve DS Bot's own built interface (app/ui/dist) on the
 // same loopback origin as `/api/bot`, and mounts only the host-side directory
 // picker backend (never DSH Web's `dsh-client-ui-directory-picker-*` rows).
 import { createHash } from 'node:crypto'
@@ -125,11 +124,11 @@ function sanitizePathname(decodedPath) {
 
 /**
  * Create the Fetch resource serving DS Bot's built UI from `distDir`.
- * Index and HTML requests pass `authorizeIndex` first (case-insensitively) so
- * the Host launch token is traded for the session cookie; static assets are
+ * HTML requires the Peer admitted by WebServer; the Token provider owns the
+ * launch-token exchange. Static assets are
  * strictly confined inside `distDir` (including `realpath` checks outside asar).
  */
-export function createUiResource({ distDir, authorizeIndex }) {
+export function createUiResource({ distDir }) {
   const distRoot = resolve(distDir)
   const distRootPrefix = withSep(distRoot)
   const distIndex = join(distRoot, 'index.html')
@@ -164,8 +163,7 @@ export function createUiResource({ distDir, authorizeIndex }) {
     const isHtml = isIndex || extname(lowerPath) === '.html' || extname(lowerPath) === '.htm'
 
     if (isHtml && peer === undefined) {
-      const refusal = authorizeIndex(request)
-      if (refusal !== undefined) return refusal
+      return new Response('unauthorized', { status: 401, headers: SECURITY_HEADERS })
     }
 
     let body
@@ -219,21 +217,13 @@ export function apply(ctx, config) {
   ctx.plugin(shouldUseNativeDirectoryPicker() ? NativeDirectoryPicker : BrowseDirectoryPicker)
 
   const distDir = resolveDistDir(config)
-  const authorizeIndex = (request) => {
-    let status = 401
-    let headers = new Headers()
-    let body
-    const allowed = ctx.connection.authorizeIndex(request, {
-      writeHead(nextStatus, nextHeaders) {
-        status = nextStatus
-        headers = new Headers(nextHeaders)
-      },
-      end(text) {
-        body = text
-      },
-    })
-    return allowed ? undefined : new Response(body, { status, headers })
+  const resource = createUiResource({ distDir })
+  // WebServer admits protected HTML before dispatch. Asset requests remain
+  // anonymous so the renderer can load its scripts and styles.
+  const auth = ({ url }) => {
+    let path
+    try { path = decodeURIComponent(url.pathname).toLowerCase() } catch { return 'required' }
+    return path === '/' || ['.html', '.htm'].includes(extname(path)) ? 'required' : 'anonymous'
   }
-  const resource = createUiResource({ distDir, authorizeIndex })
-  ctx.effect(() => ctx.webServer.registerFallback({ resource }), 'dsbot-engine: ui dist fallback')
+  ctx.effect(() => ctx.webServer.registerFallback({ resource, auth }), 'dsbot-engine: ui dist fallback')
 }

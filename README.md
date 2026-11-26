@@ -25,20 +25,20 @@ DS Bot is an open-source project built on [DeepSeek Harness](https://github.com/
 
 **Desktop app (Windows, macOS, Linux)**
 
-The desktop app bundles a pinned DSH, so you do not need to install DSH first. Download the package for your system from [Releases](https://github.com/Fei-Craft/DS-Bot/releases/latest), open it, and configure a model in Settings (it can also copy your existing bot team from DSH).
+The desktop app bundles the DSH `0.2.3-alpha.2` prerelease, so you do not need to install DSH first. Download the package for your system from [Releases](https://github.com/Fei-Craft/DS-Bot/releases/latest), open it, and configure a model in Settings (it can also copy your existing bot team from DSH).
 
 If your OS warns about an unsigned app: on Windows select **More info** → **Run anyway**; on macOS open **System Settings** → **Privacy & Security** and select **Open Anyway**.
 
 **As a plugin in DSH**
 
-First install DSH and configure at least one model in it. DS Bot uses the models from DSH.
+This checkout targets the DSH `0.2.3-alpha.2` prerelease. First install it and configure at least one model in it. DS Bot uses the models from DSH.
 
 - **DSH Desktop**: In the sidebar, select **Plugins** → **Add plugin**, enter `ds-bot` (in mainland China, set **Registry** to **Mainland China mirror**), then select **Install** and **Enable now**.
-- **DSH Web** (needs Node.js `22.19` or later, and pnpm):
+- **DSH Web** (needs Node.js `24.22.3` or newer 24.x, or `26.13.1` or later, and pnpm):
 
 ```sh
-npx @deepseek-ai/dsh@0.2.2-rc.5 plugin --profile web add ds-bot
-npx @deepseek-ai/dsh@0.2.2-rc.5 web
+npx @deepseek-ai/dsh@0.2.3-alpha.2 plugin --profile web add ds-bot
+npx @deepseek-ai/dsh@0.2.3-alpha.2 web
 ```
 
 **Docker (NAS, Linux server)**

@@ -107,7 +107,7 @@ const bench = (rows) => {
     window.__ModuleLoader__ = { mode: 'queue', pendingQueue: [], load() {} }
     return createClientModuleSystem(window.__ModuleLoader__, { id: 'shell', exports: {} }, {
       boot: boot('r1'),
-      staticModules: {},
+      staticModules: [],
     })
   })
   const materialize = id => inside(() => system.materialize(id))

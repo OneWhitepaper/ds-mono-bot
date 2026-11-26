@@ -10,7 +10,7 @@
 import { dirname, join } from 'node:path'
 import { rmSync, writeFileSync } from 'node:fs'
 import { composeEntries } from '@deepseek-ai/dsh-app-boot'
-import { stringify } from 'yaml'
+import { stringifyEntryYaml } from '@deepseek-ai/cordis-plugin-include'
 
 export const SEARCH_PATCH_NAME = 'search-selector.patch.yml'
 
@@ -48,6 +48,6 @@ export function reconcileSearchSelector(profile) {
     rmSync(file, { force: true })
     return []
   }
-  writeFileSync(file, stringify(rows), 'utf8')
+  writeFileSync(file, stringifyEntryYaml(rows), 'utf8')
   return [file]
 }

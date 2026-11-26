@@ -726,3 +726,23 @@ test('AccountSettingsPage opens view.attempt.authorizeUrl on sign-in and support
   await signOutBtn.props.onClick()
   assert.equal(calls.some(([ep]) => ep === 'engine-account-signout'), true)
 })
+
+
+test('desktop settings factory renders its section with the shared dialog contract', () => {
+  const { mod } = loadMod()
+  const slots = mod.createSlotRegistry()
+  const close = () => {}
+  slots.register({ name: mod.SETTINGS_SECTION_SLOT, id: 'compat', meta: { sync: true } },
+    props => react.createElement('section', { ...props, 'data-section': 'compat' }, props.subTarget))
+  const probe = createHarness(() => {
+    const bridge = mod.useDshSettingsBridge(slots, { surfaceMode: 'bot', readOnly: true })
+    return bridge.renderFactorySlot('settings.section.view', { id: 'compat', close, subTarget: 'web-search' })
+  })
+  const tree = probe.render()
+  const [section] = findAll(tree, node => node.props?.['data-section'] === 'compat')
+  assert.ok(section)
+  assert.equal(section.props.close, close)
+  assert.equal(section.props.readOnly, true)
+  assert.equal(section.props.surfaceMode, 'bot')
+  assert.equal(textOf(section), 'web-search')
+})

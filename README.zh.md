@@ -25,20 +25,20 @@ DS Bot 是一个基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepsee
 
 **桌面应用（Windows、macOS、Linux）**
 
-桌面应用自带锁定版本的 DSH，不需要先装 DSH。直接在 [Releases](https://github.com/Fei-Craft/DS-Bot/releases/latest) 下载对应系统的安装包，打开后在设置里配好模型即可使用（也可以直接复制你原来在 DSH 里的 Bot 团队）。
+桌面应用自带 DSH `0.2.3-alpha.2` 预发布版，不需要先装 DSH。直接在 [Releases](https://github.com/Fei-Craft/DS-Bot/releases/latest) 下载对应系统的安装包，打开后在设置里配好模型即可使用（也可以直接复制你原来在 DSH 里的 Bot 团队）。
 
 如果安装或打开时提示未签名拦截：Windows 点 **更多信息** → **仍要运行**；macOS 在 **系统设置** → **隐私与安全性** 里点 **仍要打开**。
 
 **作为 DSH 插件**
 
-先装好 DSH，并在 DSH 里配好至少一个模型。DS Bot 直接使用 DSH 里的模型。
+当前代码面向 DSH `0.2.3-alpha.2` 预发布版。先装好该版本，并在 DSH 里配好至少一个模型。DS Bot 直接使用 DSH 里的模型。
 
 - **DSH Desktop**：侧栏点 **插件** → **添加插件**，包名填 `ds-bot`（在中国大陆，安装源选 **中国大陆镜像源**），点 **安装** 并 **立即启用**。
-- **DSH Web**（需要 Node.js `22.19` 以上和 pnpm）：
+- **DSH Web**（需要 Node.js `24.22.3` 及以上的 24.x，或 `26.13.1` 及以上版本，以及 pnpm）：
 
 ```sh
-npx @deepseek-ai/dsh@0.2.2-rc.5 plugin --profile web add ds-bot
-npx @deepseek-ai/dsh@0.2.2-rc.5 web
+npx @deepseek-ai/dsh@0.2.3-alpha.2 plugin --profile web add ds-bot
+npx @deepseek-ai/dsh@0.2.3-alpha.2 web
 ```
 
 **Docker（NAS、Linux 服务器）**

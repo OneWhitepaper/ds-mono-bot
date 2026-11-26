@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { join, resolve } from 'node:path'
+import { join, posix, resolve } from 'node:path'
 import { FileMatcher, getNodeModuleFileMatcher } from 'app-builder-lib/out/fileMatcher.js'
 import { parse } from 'yaml'
 
@@ -10,15 +10,86 @@ test('packaged auto-updates use the Fei-Craft GitHub release feed', () => {
   assert.deepEqual(config.publish, { provider: 'github', owner: 'Fei-Craft', repo: 'DS-Bot' })
 })
 
-// npm installs the peers that the DSH packages ask for, but electron-builder packs only the
-// dependencies it finds through `dependencies` and `optionalDependencies`. A package that npm
-// installed only as a peer would be left out of the installer, and the Host would not boot.
-test('every package that the app runs on is a dependency, not only a peer', () => {
-  const lock = JSON.parse(readFileSync(new URL('../package-lock.json', import.meta.url), 'utf8'))
-  const peerOnly = Object.entries(lock.packages)
-    .filter(([path, entry]) => path !== '' && entry.peer && !entry.dev && !entry.devOptional)
+const linkedPackagePath = (packages, location) => {
+  let path = location
+  while (packages[path]?.link === true) path = packages[path].resolved
+  return path
+}
+
+const resolveLockedDependency = (packages, ownerPath, name) => {
+  let owner = linkedPackagePath(packages, ownerPath)
+  while (true) {
+    const candidate = owner ? `${owner}/node_modules/${name}` : `node_modules/${name}`
+    if (packages[candidate] !== undefined) return candidate
+    if (!owner) return undefined
+    owner = posix.dirname(owner)
+    if (owner === '.') owner = ''
+  }
+}
+
+const productionClosure = (packages) => {
+  const root = packages['']
+  const queue = []
+  const visited = new Set()
+  for (const name of [...Object.keys(root.dependencies ?? {}), ...Object.keys(root.optionalDependencies ?? {})]) {
+    const path = resolveLockedDependency(packages, '', name)
+    assert.ok(path !== undefined, `missing production dependency ${name}`)
+    queue.push(path)
+  }
+  while (queue.length > 0) {
+    const requestedPath = queue.pop()
+    const path = linkedPackagePath(packages, requestedPath)
+    if (visited.has(path)) continue
+    visited.add(path)
+    const entry = packages[path]
+    assert.ok(entry !== undefined, `missing linked package ${path}`)
+    for (const name of Object.keys(entry.dependencies ?? {})) {
+      const dependency = resolveLockedDependency(packages, path, name)
+      if (dependency === undefined && entry.optional) continue
+      assert.ok(dependency !== undefined, `${path} is missing production dependency ${name}`)
+      queue.push(dependency)
+    }
+    for (const name of Object.keys(entry.optionalDependencies ?? {})) {
+      const dependency = resolveLockedDependency(packages, path, name)
+      if (dependency !== undefined) queue.push(dependency)
+    }
+  }
+  return visited
+}
+
+const peerOnlyPackages = (packages) => {
+  const production = productionClosure(packages)
+  return Object.entries(packages)
+    .filter(([path, entry]) => path !== '' && entry.peer && !entry.dev && !entry.devOptional && !production.has(linkedPackagePath(packages, path)))
     .map(([path, entry]) => `${path.replace(/^.*node_modules\//u, '')}@${entry.version}`)
-  assert.deepEqual(peerOnly, [], `add these to "dependencies" in app/package.json: ${peerOnly.join(' ')}`)
+    .sort()
+}
+
+test('peer-only packages are excluded from the packaged production dependency graph', () => {
+  const lock = JSON.parse(readFileSync(new URL('../package-lock.json', import.meta.url), 'utf8'))
+  assert.deepEqual(peerOnlyPackages(lock.packages), [], 'add these to "dependencies" in app/package.json')
+})
+
+test('peer-only check distinguishes packages also present in the production graph', () => {
+  const packages = {
+    '': { dependencies: { consumer: '1.0.0' } },
+    'node_modules/consumer': { version: '1.0.0', peerDependencies: { runtime: '*' } },
+    'node_modules/runtime': { version: '1.0.0', peer: true },
+  }
+  assert.deepEqual(peerOnlyPackages(packages), ['runtime@1.0.0'])
+
+  packages[''].dependencies.runtime = '1.0.0'
+  assert.deepEqual(peerOnlyPackages(packages), [])
+})
+
+test('production dependency check keeps missing required dependencies visible', () => {
+  const packages = {
+    '': { dependencies: { runtime: '1.0.0' } },
+    'node_modules/runtime': { version: '1.0.0', dependencies: { native: '1.0.0' } },
+  }
+  assert.throws(() => peerOnlyPackages(packages), /missing production dependency native/u)
+  packages['node_modules/runtime'].optional = true
+  assert.deepEqual(peerOnlyPackages(packages), [])
 })
 
 test('sharp native modules and versioned libvips libraries are unpacked together', () => {

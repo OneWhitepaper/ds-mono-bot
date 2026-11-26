@@ -159,15 +159,24 @@ JS
     await setTimeout(300)
   }
   assert.ok(ready, 'web server must answer HTTP after ownership migration')
-  const logs = docker(['logs', server])
-  const loginUrl = (logs.stdout + logs.stderr).match(/http:\/\/127\.0\.0\.1:3080\/\?token=[^\s]+/)?.[0]
+  const loginDeadline = Date.now() + 15_000
+  let loginUrl
+  while (loginUrl === undefined && Date.now() < loginDeadline) {
+    const logs = docker(['logs', server])
+    loginUrl = (logs.stdout + logs.stderr).match(/^dsh web: (http:\/\/\S+)$/m)?.[1]
+    if (loginUrl === undefined) await setTimeout(300)
+  }
   assert.ok(loginUrl, 'web server must provide a login URL')
+  const loginTarget = new URL(loginUrl)
+  assert.equal(loginTarget.origin, `http://${address}:3080`, 'login URL must target the container listener')
+  assert.equal(loginTarget.pathname, '/')
+  assert.ok(loginTarget.searchParams.has('token'), 'login URL must include its process token')
   docker(['exec', server, 'node', '--input-type=module', '-e', `
     import assert from 'node:assert/strict'
     const login = await fetch(process.argv[1], { redirect: 'manual' })
     const cookie = login.headers.getSetCookie().map(value => value.split(';')[0]).join('; ')
     assert.ok(cookie, 'login must return a cookie')
-    const response = await fetch('http://127.0.0.1:3080/api/bot', {
+    const response = await fetch(new URL('/api/bot', process.argv[1]), {
       method: 'POST',
       headers: { 'content-type': 'application/json', cookie },
       body: JSON.stringify({ endpoint: 'state', payload: {} }),

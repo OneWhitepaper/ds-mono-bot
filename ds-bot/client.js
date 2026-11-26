@@ -53662,9 +53662,9 @@ function SettingsDialog({ page, id, roster, actions, useUpdate, leaving = false,
         shown === "general" ? (0, import_react68.createElement)(GeneralPage, { roster, actions, run: run2, dsh, openAdvanced: advancedToken }) : null,
         shown === "appearance" ? (0, import_react68.createElement)(AppearancePage, { roster, actions, run: run2, Section: SetSection, Row: SetRow, Choice: Choice2, Switch, ownWindow: dsh?.ownWindow ?? dsh === void 0, dshRows: lookRows(dsh) }) : null,
         shown === "plugins" && !enginePlugins ? (0, import_react68.createElement)(PluginsPage, { roster, actions, Section: SetSection, Row: SetRow, initialFilter: id === "browser" ? "browser" : null, openEnginePlugins: hasSection(dsh, "plugins") ? () => actions.openSettings("plugins", "dsh") : null }) : null,
-        enginePlugins ? (0, import_react68.createElement)("div", { className: "bt-dsh-section" }, dsh.renderSlot("settings.section", { close, subTarget }, { only: "plugins" })) : null,
-        advanced ? (0, import_react68.createElement)("div", { className: "bt-dsh-section" }, dsh.renderSlot("settings.section", { close }, { only: "models" })) : null,
-        section ? (0, import_react68.createElement)("div", { className: "bt-dsh-section" }, dsh.renderSlot("settings.section", { close, subTarget }, { only: section.id })) : null,
+        enginePlugins ? (0, import_react68.createElement)("div", { className: "bt-dsh-section" }, dsh.renderFactorySlot("settings.section.view", { id: "plugins", close, subTarget })) : null,
+        advanced ? (0, import_react68.createElement)("div", { className: "bt-dsh-section" }, dsh.renderFactorySlot("settings.section.view", { id: "models", close })) : null,
+        section ? (0, import_react68.createElement)("div", { className: "bt-dsh-section" }, dsh.renderFactorySlot("settings.section.view", { id: section.id, close, subTarget })) : null,
         creatingBot ? (0, import_react68.createElement)("div", { className: "bt-settings-form" }, (0, import_react68.createElement)(CreateBot, { roster, actions, inline: true, onBack: () => actions.openSettings("bots"), onCreated: (created) => actions.openSettings("bots", created.id) })) : null,
         bot ? (0, import_react68.createElement)("div", { className: "bt-settings-form" }, (0, import_react68.createElement)(BotSettingsForm, { key: bot.id, bot, roster, actions, run: run2 })) : null,
         room2 ? (0, import_react68.createElement)("div", { className: "bt-settings-form" }, (0, import_react68.createElement)(GroupSettingsForm, { key: room2.id, room: room2, roster, actions, run: run2 })) : null,
@@ -54138,15 +54138,21 @@ var import_react71 = require("react");
 var import_react_dom11 = require("react-dom");
 var SETTINGS_CHILDREN = {
   "settings.launcher": { kind: "single", scope: "root" },
+  "settings.notice": { kind: "single", scope: "root" },
   "settings.trigger": { kind: "single", scope: "root" },
   "settings.header": { kind: "single", scope: "root" },
   "settings.action": { kind: "list", scope: "root" },
   "settings.close": { kind: "single", scope: "root" },
-  "settings.section": { kind: "list", scope: "root" },
   "settings.section.icon": { kind: "list", scope: "root", inline: true },
   "settings.onboarding": { kind: "list", scope: "root" },
   "settings.general.item": { kind: "list", scope: "root" }
 };
+var SETTINGS_SECTION_CHILDREN = {
+  "settings.section": { kind: "list", scope: "root" }
+};
+function SettingsSectionView({ id, close, subTarget, renderSlot }) {
+  return renderSlot("settings.section", { close, subTarget }, { only: id });
+}
 var SKIPPED_STEPS = /* @__PURE__ */ new Set(["welcome-notice"]);
 var DIALOG_EXIT_MS = 160;
 var BUSY_PHASES = /* @__PURE__ */ new Set(["checking", "downloading", "verifying", "installing"]);
@@ -54315,6 +54321,7 @@ function SettingsShell(props) {
   const {
     wide,
     renderSlot,
+    renderFactorySlot,
     actions,
     useUi,
     useRoster,
@@ -54366,10 +54373,15 @@ function SettingsShell(props) {
   (0, import_react71.useEffect)(() => showing ? actions.holdSettingsLook?.() : void 0, [showing]);
   (0, import_react71.useLayoutEffect)(() => holdSeat?.(), []);
   const open = settings !== null && settings !== void 0;
-  const openSettings = () => actions.openSettings("overview");
+  const openSettings = (sectionId) => actions.openSettings(...sectionId === void 0 ? ["overview"] : settingsPlace(sectionId));
   return (0, import_react71.createElement)(
     import_react71.Fragment,
     null,
+    (0, import_react71.createElement)(
+      "div",
+      { className: "bt-settings-notice-row", hidden: !wide },
+      (0, import_react71.createElement)("div", { className: "bt-settings-notice" }, renderSlot("settings.notice", { openSettings }))
+    ),
     (0, import_react71.createElement)(
       "div",
       { className: "bt-settings-row", "data-rail": wide ? void 0 : "" },
@@ -54419,7 +54431,7 @@ function SettingsShell(props) {
       actions,
       useUpdate,
       leaving,
-      dsh: { sections, items, renderSlot, preferences }
+      dsh: { sections, items, renderSlot, renderFactorySlot, preferences }
     }), document.body)) : null,
     step !== void 0 ? renderSlot("settings.onboarding", {
       stepId: step.id,
@@ -54630,9 +54642,17 @@ function installSettingsShell(ctx, { face, actions, ui, held }) {
         return () => {
         };
       }
+      let section;
+      try {
+        section = slots.registerFactory({ name: "settings.section.view", scope: "root", children: SETTINGS_SECTION_CHILDREN }, SettingsSectionView);
+      } catch (error) {
+        off();
+        throw error;
+      }
       const trigger = slots.inject("settings.trigger", () => slots.register({ name: "settings.trigger" }, TriggerContent));
       return () => {
         trigger();
+        section();
         off();
       };
     })
@@ -54733,6 +54753,8 @@ function installSettingsShell(ctx, { face, actions, ui, held }) {
 var SETTINGS_SHELL_CSS = `
 .bt-settings-row{display:flex;align-items:center;gap:6px;min-width:0}
 .bt-settings-row[data-rail]{flex-direction:column}
+.bt-settings-notice-row{position:relative;height:0}
+.bt-settings-notice{position:absolute;inset-inline:0;bottom:0;z-index:1}
 .bt-settings-trigger{display:inline-flex;align-items:center;gap:8px;height:32px;min-width:32px;padding:0 8px;border:0;border-radius:8px;background:none;color:var(--bt-ink-2);font:inherit;font-size:13px;cursor:pointer}
 .bt-settings-trigger:hover{background:var(--bt-hover)}
 .bt-settings-trigger svg{width:16px;height:16px;flex:none}

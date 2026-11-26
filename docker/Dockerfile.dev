@@ -2,11 +2,11 @@
 
 # Build a template home for fresh data directories. At container start the
 # supervisor replaces the packed plugin with a link to the mounted checkout.
-ARG NODE_IMAGE=node:24-bookworm-slim
+ARG NODE_IMAGE=node:24.22.3-bookworm-slim
 FROM ${NODE_IMAGE} AS build
 
 ARG NPM_REGISTRY=https://registry.npmjs.org/
-ARG DSH_VERSION=0.2.2-rc.5
+ARG DSH_VERSION=0.2.3-alpha.2
 
 RUN corepack enable \
     && npm config set registry "$NPM_REGISTRY" --global \

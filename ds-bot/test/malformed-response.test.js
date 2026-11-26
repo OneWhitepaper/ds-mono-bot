@@ -109,7 +109,7 @@ test('a Bot retries the malformed stream and completes on the next response', as
 for (const [finishReason, message] of [
   ['MALFORMED_FUNCTION_CALL', 'Provider stopped with: MALFORMED_FUNCTION_CALL'],
   ['UNEXPECTED_TOOL_CALL', 'Provider stopped with: UNEXPECTED_TOOL_CALL'],
-  ['MALFORMED_RESPONSE', 'Unhandled stop reason: MALFORMED_RESPONSE'],
+  ['MALFORMED_RESPONSE', 'Provider stopped with: MALFORMED_RESPONSE'],
 ]) {
   test(`a Bot retries a Gemini ${finishReason} stop and completes on the next response`, async t => {
     const unrecovered = await boot(t, false, gemini(finishReason))

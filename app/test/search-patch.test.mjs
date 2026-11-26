@@ -4,9 +4,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, before, describe, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
+import { parseEntryYaml } from '@deepseek-ai/cordis-plugin-include'
 import { composeEntries } from '@deepseek-ai/dsh-app-boot'
-import { load } from 'js-yaml'
 import { reconcileSearchSelector, SEARCH_PATCH_NAME, searchSelectorPatch } from '../src/search-patch.mjs'
 
 const DSH_WEB = '@deepseek-ai/dsh-web'
@@ -50,7 +49,7 @@ describe('searchSelectorPatch', () => {
   })
 
   test('reconciles against the real shipped @deepseek-ai/dsh-base and ds-bot patches', () => {
-    const readPatch = pkg => load(readFileSync(fileURLToPath(new URL('cordis.patch.yml', import.meta.resolve(`${pkg}/package.json`))), 'utf8'), { schema: entryListSchema })
+    const readPatch = pkg => parseEntryYaml(readFileSync(fileURLToPath(new URL('cordis.patch.yml', import.meta.resolve(`${pkg}/package.json`))), 'utf8'))
     const dir = mkdtempSync(join(tmpdir(), 'ds-bot-search-real-'))
     made.push(dir)
     const p = {
@@ -118,6 +117,25 @@ describe('reconcileSearchSelector', () => {
       assert.deepEqual(reconcileSearchSelector(p), [])
       assert.equal(existsSync(file), false)
     } finally {
+      rmSync(p.dir, { recursive: true, force: true })
+    }
+  })
+
+  test('preserves base web expressions through the overlay in DSH\'s YAML dialect', () => {
+    const baseConfig = { searchProvider: { __jsExpr: "process.env.SEARCH_PROVIDER ?? 'deepseek-official'" }, fetchProvider: 'http' }
+    const p = profile([disabledAuto], { baseConfig })
+    let file
+    try {
+      file = reconcileSearchSelector(p)[0]
+      const text = readFileSync(file, 'utf8')
+      assert.match(text, /!!js/u)
+      assert.doesNotMatch(text, /__jsExpr/u)
+      const overlay = parseEntryYaml(text)
+      assert.deepEqual(overlay, [{ id: 'web', name: DSH_WEB, config: baseConfig }])
+      const composed = composeEntries([...p.layers.map(layer => layer.patches), p.patches, overlay]).find(entry => entry.id === 'web')
+      assert.deepEqual(composed.config, baseConfig)
+    } finally {
+      if (file !== undefined) rmSync(file, { force: true })
       rmSync(p.dir, { recursive: true, force: true })
     }
   })

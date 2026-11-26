@@ -57,8 +57,9 @@ function dshShellDeclarations() {
   const stub = () => new Proxy(function () {}, { get: (_, key) => (key === 'then' ? undefined : key === Symbol.toPrimitive ? () => '' : stub()), apply: () => stub(), construct: () => stub() })
   const module = factory(name => (name === 'react' || name === 'react/jsx-runtime' ? react : stub()))
   const children = {}
+  const register = options => { Object.assign(children, options.children ?? {}); return () => {} }
   const ctx = new Proxy({
-    slots: { inject: (_, fn) => fn(), register: (options) => { Object.assign(children, options.children ?? {}); return () => {} } },
+    slots: { inject: (_, fn) => fn(), register, registerFactory: register },
     effect: fn => fn(),
     remote: { $host: { isLoopback: false } },
     remoteAccess: { whenAccess: (_, fn) => fn() },
@@ -78,7 +79,7 @@ const styles = load(await bundle("export { botOwnCss, SHELL_CSS } from './src/cl
 test('the seat declares every child slot DSH\'s own settings shell declares, alike', () => {
   // Both sides come from their own realms, so the comparison goes through plain data.
   const plain = value => JSON.parse(JSON.stringify(value))
-  const ours = plain(shell.SETTINGS_CHILDREN)
+  const ours = plain({ ...shell.SETTINGS_CHILDREN, ...shell.SETTINGS_SECTION_CHILDREN })
   const dsh = plain(dshShellDeclarations())
   for (const [name, spec] of Object.entries(dsh)) assert.deepEqual(ours[name], spec, name)
   assert.deepEqual(Object.keys(ours).filter(name => !(name in dsh) && !NEWER_SLOTS.has(name)), [])
@@ -96,6 +97,7 @@ test('the bundle patch turns off the DSH settings shell row that dsh-web-app mou
 function settingsInstall({ dsh = false, ready = true } = {}) {
   const declared = new Map(ready ? [['sidebar.settings', {}]] : [])
   const entries = new Map()
+  const factories = new Map()
   const waits = new Set()
   const held = []
   const activate = (wait) => {
@@ -117,6 +119,18 @@ function settingsInstall({ dsh = false, ready = true } = {}) {
     for (const wait of waits) activate(wait)
   }
   const slots = {
+    registerFactory(options, component) {
+      if (factories.has(options.name)) throw new Error(`duplicate factory: ${options.name}`)
+      for (const child of Object.keys(options.children ?? {})) {
+        if (declared.has(child)) throw new Error(`duplicate declaration: ${child}`)
+      }
+      factories.set(options.name, { options, component })
+      for (const [child, spec] of Object.entries(options.children ?? {})) declare(child, spec)
+      return () => {
+        factories.delete(options.name)
+        for (const child of Object.keys(options.children ?? {})) declared.delete(child)
+      }
+    },
     register(options, component) {
       const { name, children = {} } = options
       if (!declared.has(name)) throw new Error(`undeclared slot: ${name}`)
@@ -149,8 +163,29 @@ function settingsInstall({ dsh = false, ready = true } = {}) {
   const install = () => shell.installSettingsShell(ctx, {
     face: () => ({}), actions: {}, ui: { getSnapshot: () => ({}) }, held: { set: value => held.push(value) },
   })
-  return { entries, declared, held, dshTrigger, dshSeat, install, declare }
+  return { entries, declared, factories, held, dshTrigger, dshSeat, install, declare }
 }
+
+test('the settings page Factory owns sections and passes each surface its own close action', () => {
+  const rig = settingsInstall()
+  const installed = rig.install()
+  const factory = rig.factories.get('settings.section.view')
+  assert.ok(factory, 'Plugins and Settings need the same settings page Factory')
+  assert.deepEqual(JSON.parse(JSON.stringify(factory.options.children)), { 'settings.section': { kind: 'list', scope: 'root' } })
+  assert.equal(shell.SETTINGS_CHILDREN['settings.section'], undefined, 'the seat must not redeclare the Factory child')
+  const close = () => {}
+  const subTarget = { id: 'plugin-row' }
+  const calls = []
+  const renderSlot = (...args) => { calls.push(args); return 'page' }
+  assert.equal(factory.component({ id: 'models', close, subTarget, renderSlot }), 'page')
+  assert.equal(calls[0][0], 'settings.section')
+  assert.equal(calls[0][1].close, close)
+  assert.equal(calls[0][1].subTarget, subTarget)
+  assert.equal(calls[0][2].only, 'models')
+  installed.dispose()
+  assert.equal(rig.factories.size, 0)
+  assert.equal(rig.declared.has('settings.section'), false)
+})
 
 test('an enabled DSH settings shell keeps its trigger and DS Bot installs without a collision (#1245)', () => {
   const rig = settingsInstall({ dsh: true })
@@ -258,6 +293,7 @@ function dialog({ page = 'general', id = null, sections, items = [], actions = {
     items,
     preferences,
     renderSlot: (name, owner, opts) => { drawn.push([name, opts?.only ?? null]); return { type: 'slot', props: { name, only: opts?.only ?? null } } },
+    renderFactorySlot: (name, owner) => { drawn.push([name, owner.id]); return { type: 'factory', props: { name, id: owner.id } } },
   }
   const all = { closeSettings: () => calls.push('close'), openSettings: (...args) => calls.push(args), providers: () => {}, ...actions }
   const tree = SettingsDialog({ page, id, roster, actions: all, useUpdate: pick => pick({}), dsh })
@@ -280,7 +316,7 @@ test('a DSH page opens in the dialog and draws that section', () => {
   walk(nav.tree, node => node.type === 'button' && textOf(node) === 'Agent presets')[0].props.onClick()
   assert.deepEqual(nav.calls, [['dsh', 'agent-presets']])
   const page = dialog({ page: 'dsh', id: 'agent-presets' })
-  assert.ok(page.drawn.some(([name, only]) => name === 'settings.section' && only === 'agent-presets'))
+  assert.ok(page.drawn.some(([name, only]) => name === 'settings.section.view' && only === 'agent-presets'))
   assert.equal(textOf(walk(page.tree, node => node.type === 'h2')[0]), 'Agent presets')
 })
 
@@ -292,7 +328,7 @@ test('a DSH page that left the ledger falls back to Overview', () => {
 
 test('DSH\'s Models page is Models → Advanced settings, with a way back', () => {
   const page = dialog({ page: 'models', id: 'advanced' })
-  assert.ok(page.drawn.some(([name, only]) => name === 'settings.section' && only === 'models'))
+  assert.ok(page.drawn.some(([name, only]) => name === 'settings.section.view' && only === 'models'))
   const [back] = walk(page.tree, node => node.type === 'button' && node.props['aria-label'] === 'Back to models')
   back.props.onClick()
   assert.deepEqual(page.calls, [['models']])
@@ -303,13 +339,13 @@ test('DSH\'s Models page is Models → Advanced settings, with a way back', () =
 
 test('DSH\'s Plugins page is Plugins → Engine plugins, with a way back', () => {
   const page = dialog({ page: 'plugins', id: 'dsh' })
-  assert.ok(page.drawn.some(([name, only]) => name === 'settings.section' && only === 'plugins'))
+  assert.ok(page.drawn.some(([name, only]) => name === 'settings.section.view' && only === 'plugins'))
   const [back] = walk(page.tree, node => node.type === 'button' && node.props['aria-label'] === 'Back to Plugins')
   back.props.onClick()
   assert.deepEqual(page.calls, [['plugins']])
   // Legacy deep links `('dsh', 'plugins')` from scheduling & onboarding also land on Engine plugins.
   const legacy = dialog({ page: 'dsh', id: 'plugins' })
-  assert.ok(legacy.drawn.some(([name, only]) => name === 'settings.section' && only === 'plugins'))
+  assert.ok(legacy.drawn.some(([name, only]) => name === 'settings.section.view' && only === 'plugins'))
 })
 
 test('DSH\'s General rows join Appearance (look), General Basics (language), and Advanced (rest)', () => {
@@ -359,10 +395,11 @@ test('General settings puts the Classic Agent mode switch at top level (outside 
 // component crashed is set aside. A registration that succeeds is not a shell on screen.
 const fakeSlots = () => {
   const registered = []
+  const register = (options, component) => { const row = { options, component }; registered.push(row); return () => registered.splice(registered.indexOf(row), 1) }
   return {
     registered,
     inject: (_, fn) => { const off = fn(); return () => off?.() },
-    register: (options, component) => { const row = { options, component }; registered.push(row); return () => registered.splice(registered.indexOf(row), 1) },
+    register, registerFactory: register,
     entries: () => [], getVersion: () => 0, subscribe: () => () => {},
   }
 }
@@ -402,27 +439,60 @@ const mounted = async () => {
   })
   const shellModule = module.exports
   const pick = value => fn => fn(value)
-  const props = (holdSeat) => ({
+  const props = (holdSeat, overrides = {}) => ({
     wide: true, renderSlot: () => null, actions: { closeSettings() {}, openSettings() {} },
     useUi: pick({ settings: null }), useRoster: pick(roster), useUpdate: pick({}), useSessions: pick({}),
     useSections: pick([]), useGeneralItems: pick([]), useOnboardingSteps: pick([]), useOnboardingRequest: pick(undefined),
     useConnectionState: pick('connected'), useDesktopUpdate: pick({}), useSettingsShortcut: pick(undefined),
     reconnect() {}, openDesktopUpdate() {}, openOnboarding() {}, finishOnboarding() {}, holdSeat,
+    ...overrides,
   })
   // Each render returns the cleanups of the layout effects it ran, like one mount.
-  const mount = (holdSeat) => {
+  const mount = (holdSeat, overrides) => {
     effects.length = 0
-    shellModule.SettingsShell(props(holdSeat))
-    return effects.splice(0).map(fn => fn()).filter(cleanup => typeof cleanup === 'function')
+    const tree = shellModule.SettingsShell(props(holdSeat, overrides))
+    const cleanups = effects.splice(0).map(fn => fn()).filter(cleanup => typeof cleanup === 'function')
+    return { tree, cleanups }
   }
   return { shellModule, mount }
 }
+
+test('settings notice mounts above the launcher, follows rail visibility, and opens its requested section', async () => {
+  const { mount } = await mounted()
+  const opened = []
+  const render = wide => {
+    const slots = []
+    const { tree } = mount(undefined, {
+      wide,
+      renderSlot: (...args) => { slots.push(args); return null },
+      actions: { closeSettings() {}, openSettings: (...args) => opened.push(args) },
+    })
+    const [row] = walk(tree, node => node.props?.className === 'bt-settings-notice-row')
+    const [launcher] = walk(tree, node => node.props?.className === 'bt-settings-row')
+    return { slots, row, launcher }
+  }
+
+  const wide = render(true)
+  const notice = wide.slots.find(([name]) => name === 'settings.notice')
+  assert.ok(notice, 'the DSH account notice slot must be rendered')
+  assert.equal(wide.row?.props.hidden, false)
+  assert.equal(wide.launcher?.props['data-rail'], undefined)
+  notice[1].openSettings('account')
+  assert.deepEqual(opened, [['dsh', 'account']])
+  notice[1].openSettings()
+  assert.deepEqual(opened, [['dsh', 'account'], ['overview']])
+
+  const rail = render(false)
+  assert.ok(rail.slots.some(([name]) => name === 'settings.notice'), 'rail visibility must not unmount the notice')
+  assert.equal(rail.row?.props.hidden, true)
+  assert.equal(rail.launcher?.props['data-rail'], '')
+})
 
 test('DS Bot holds the seat only while SettingsShell is on screen', async () => {
   const { shellModule, mount } = await mounted()
   const held = heldSource()
   const seat = shellModule.seatHold(held)
-  const cleanups = mount(seat.hold)
+  const { cleanups } = mount(seat.hold)
   assert.equal(held.getSnapshot(), true)
   for (const cleanup of cleanups) cleanup()
   assert.equal(held.getSnapshot(), false)
@@ -432,14 +502,14 @@ test('a remount that overlaps the old shell keeps the seat held until the last o
   const { shellModule, mount } = await mounted()
   const held = heldSource()
   const seat = shellModule.seatHold(held)
-  const first = mount(seat.hold)
-  const second = mount(seat.hold)
+  const first = mount(seat.hold).cleanups
+  const second = mount(seat.hold).cleanups
   for (const cleanup of first) cleanup()
   assert.equal(held.getSnapshot(), true)
   for (const cleanup of second) cleanup()
   assert.equal(held.getSnapshot(), false)
   // A release that runs twice does not take another mount's hold with it.
-  const third = mount(seat.hold)
+  const third = mount(seat.hold).cleanups
   for (const cleanup of first) cleanup()
   assert.equal(held.getSnapshot(), true)
   for (const cleanup of third) cleanup()

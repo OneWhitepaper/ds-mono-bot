@@ -9,7 +9,7 @@ import { prepareComputerHelper } from '../../ds-bot/src/host/computer/mac-helper
 
 const BUNDLE = 'a'.repeat(64)
 const EXECUTABLE = join('DSH Computer Use.app', 'Contents', 'MacOS', 'dsh-cua-native')
-const binDir = (runtimeDir, arch = 'arm64') => join(runtimeDir, 'app.asar.unpacked', 'node_modules', '@deepseek-ai', 'dsh-experimental-cua-macos', 'native', 'bin', `darwin-${arch}`)
+const binDir = (runtimeDir, arch = 'arm64') => join(runtimeDir, 'app.asar.unpacked', 'node_modules', '@deepseek-ai', 'dsh-cua-macos', 'native', 'bin', `darwin-${arch}`)
 
 function fixture(t, bundle = BUNDLE, content = 'helper v1') {
   const root = mkdtempSync(join(tmpdir(), 'ds-bot-computer-helper-'))
@@ -90,7 +90,7 @@ test('a receipt cannot point out of the helper folder', async (t) => {
 })
 
 // The real signed helper, with the real ditto and codesign.
-const packaged = fileURLToPath(new URL('../node_modules/@deepseek-ai/dsh-experimental-cua-macos/native/bin', import.meta.url))
+const packaged = fileURLToPath(new URL('../node_modules/@deepseek-ai/dsh-cua-macos/native/bin', import.meta.url))
 test('a real copy keeps DeepSeek\'s signature and drops quarantine', { skip: process.platform !== 'darwin' || !existsSync(join(packaged, `darwin-${process.arch}`, 'current.json')) }, async (t) => {
   const root = mkdtempSync(join(tmpdir(), 'ds-bot-computer-helper-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))

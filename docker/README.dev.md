@@ -1,6 +1,6 @@
 # DS Bot source development in Docker
 
-This Compose override runs the checkout on disk with the DSH 0.2.2 toolchain.
+This Compose override runs the checkout on disk with the DSH 0.2.3-alpha.2 toolchain.
 Frontend source changes rebuild the browser bundles; host source changes restart
 DSH. The development image stays local and is separate from the GHCR release.
 

@@ -2,7 +2,7 @@
 
 The DS Bot plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh). It turns dsh into a team of long-lived Bots that talk to you, to each other and in group chats. See the [project page](../README.md) for an overview, install steps and screenshots.
 
-Tested with dsh `0.2.2-rc.5` (Web and Desktop).
+The current Harness target is the dsh `0.2.3-alpha.2` prerelease (Web and Desktop).
 
 > For LLM/automated operations, diagnostics, upgrade playbooks, and recovery, see [Self-Maintenance & Operations Reference](../docs/self-maintenance.md) and the bundled [`ds-bot-maintenance`](src/host/skills/ds-bot-maintenance/SKILL.md) skill. For capabilities, connectors, standalone DSH plugins, local ACP CLIs, and `ds-bot` extension development, see [Plugin & Extension Development Reference](../docs/plugin-development.md) and the bundled [`ds-bot-plugin-dev`](src/host/skills/ds-bot-plugin-dev/SKILL.md) skill.
 
@@ -249,7 +249,7 @@ The chats themselves are dsh Sessions and are not in `bot/`: they are in `~/.dsh
 
 ## Development
 
-You need Node 24, pnpm and a deepseek-harness checkout with its dependencies installed, next to this repository (`../deepseek-harness`, or set `DSH_HARNESS`). The Desktop test bench also needs `xvfb-run` and `ffmpeg`. Web screenshots need Chrome or Chromium (`CHROME_BIN`; by default `google-chrome` or `chromium`).
+You need Node.js 24.22.3 or newer 24.x, or Node.js 26.13.1 or later, pnpm and a deepseek-harness checkout with its dependencies installed, next to this repository (`../deepseek-harness`, or set `DSH_HARNESS`). The Desktop test bench also needs `xvfb-run` and `ffmpeg`. Web screenshots need Chrome or Chromium (`CHROME_BIN`; by default `google-chrome` or `chromium`).
 
 ```sh
 npm ci                                   # the plugin's packages and esbuild, for the client build

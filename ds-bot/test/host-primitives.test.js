@@ -21,12 +21,12 @@ const harness = process.env.DSH_HARNESS
 const frontend = harness === undefined ? undefined
   : [join(harness, 'node_modules/@deepseek-ai/dsh-web-frontend/dist/assets'), join(harness, 'packages/web/frontend/dist/assets')].find(existsSync)
 
-// The browser bundle hands plugins the primitives module as a frozen namespace object:
-// `"@deepseek-ai/dsh-client-ui-primitives":X`, with `X=Object.freeze(...{__proto__:null,A:a,...})`.
+// The browser bundle keeps the public namespace frozen. Newer hosts register its
+// static module manifest through a helper, with the namespace as the second argument.
 function hostExports() {
   for (const file of readdirSync(frontend).filter(name => /^index-.*\.js$/.test(name))) {
     const source = readFileSync(join(frontend, file), 'utf8')
-    const binding = /"@deepseek-ai\/dsh-client-ui-primitives":([\w$]+)/.exec(source)?.[1]
+    const binding = /"@deepseek-ai\/dsh-client-ui-primitives":(?:[\w$]+\("@deepseek-ai\/dsh-client-ui-primitives",)?([\w$]+)/.exec(source)?.[1]
     if (binding === undefined) continue
     const start = source.indexOf(`${binding}=Object.freeze(`)
     const body = source.slice(start, source.indexOf('},Symbol.toStringTag', start))

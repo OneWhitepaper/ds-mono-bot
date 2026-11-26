@@ -51,13 +51,13 @@ if (!existsSync(executable)) {
   // macOS carries the signed "DSH Computer Use" helper outside the asar, in a
   // hash-named folder; find it by its name rather than the changing hash.
   if (process.platform === 'darwin') {
-    const rootDir = join(resources, unpacked, 'node_modules', '@deepseek-ai', 'dsh-experimental-cua-macos', 'native', 'bin')
+    const rootDir = join(resources, unpacked, 'node_modules', '@deepseek-ai', 'dsh-cua-macos', 'native', 'bin')
     const dirs = existsSync(rootDir) ? readdirSync(rootDir) : []
     const helper = dirs.flatMap(dir => {
       const here = join(rootDir, dir)
       return existsSync(here) ? readdirSync(here).map(hash => join(here, hash, 'DSH Computer Use.app')) : []
     }).find(entry => existsSync(entry))
-    if (helper === undefined) missing.push(join(unpacked, 'node_modules', '@deepseek-ai', 'dsh-experimental-cua-macos', 'native', 'bin', '<arch>', '<hash>', 'DSH Computer Use.app'))
+    if (helper === undefined) missing.push(join(unpacked, 'node_modules', '@deepseek-ai', 'dsh-cua-macos', 'native', 'bin', '<arch>', '<hash>', 'DSH Computer Use.app'))
   }
   if (missing.length > 0) {
     console.error(`check-packed: FAILED: missing from ${resources}:\n  ${missing.join('\n  ')}`)

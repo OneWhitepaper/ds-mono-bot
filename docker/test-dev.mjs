@@ -206,11 +206,7 @@ try {
     'run', '--detach', '--rm', '--name', releaseName, '--network', 'none', ...dataMounts,
     '-e', `PUID=${uid}`, '-e', `PGID=${gid}`, '-e', 'DSH_TELEMETRY_DISABLED=1', releaseImage,
   ])
-  const releaseProbe = `
-    const response = await fetch('http://127.0.0.1:3080/');
-    if (![200, 401].includes(response.status)) throw new Error('Unexpected HTTP status: ' + response.status);
-  `
-  await waitFor('the release web server with its restored plugin', () => docker(['exec', releaseName, 'node', '--input-type=module', '-e', releaseProbe], { allowFailure: true }).status === 0)
+  await waitFor('the release web server with its restored plugin', httpReady(releaseName))
   docker(['exec', releaseName, 'sh', '-eu', '-c', `
     test ! -L /data/profiles/web/node_modules/ds-bot
     test -f /data/profiles/web/node_modules/ds-bot/index.js

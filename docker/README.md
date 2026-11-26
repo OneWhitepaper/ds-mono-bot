@@ -10,7 +10,7 @@ For local source development with frontend rebuilds and host restarts, see
 
 - Docker 24+ with Compose v2.24+ (Docker Desktop, or Docker Engine + the
   compose plugin — `env_file.required` needs 2.24).
-- Linux containers, x86-64. arm64 builds should work (`node:24-bookworm-slim` is
+- Linux containers, x86-64. arm64 builds should work (`node:24.22.3-bookworm-slim` is
   multi-arch) but are untested.
 - A DeepSeek API key (or another Anthropic-Messages-compatible endpoint through
   `DEEPSEEK_BASE_URL`).
@@ -39,8 +39,8 @@ This builds the local image without pulling a published DS Bot image. The root
 Compose file publishes host port **13080**, and stores data and workspace files
 in `docker/data` and `docker/workspace`.
 
-The log prints a line like `dsh web: http://127.0.0.1:3080/?token=… (LAN:
-http://172.x.x.x:3080/?token=…)`. Take the token from it and open
+The log prints a line like `dsh web: http://172.x.x.x:3080/?token=…`, using
+the container's listen address. Take the token from it and open
 `http://<NAS IP>:13080/?token=…` once in your browser: the token sets a signed
 cookie (valid 30 days, bound to that authority), after which
 `http://<NAS IP>:13080/` opens the UI directly. The printed port is the container's;
@@ -186,8 +186,8 @@ The packed plugin stays at `/opt/ds-bot/ds-bot.tgz` for later dependency
 installs. `/tmp/ds-bot.tgz` links to it for profiles created by older images.
 A manual dependency install can therefore pick up the plugin bundled in the
 current image; restarting alone does not update the persisted profile.
-The image is built and tested with dsh `0.2.2-rc.5`, the version
-DS Bot is verified with. The entrypoint translates the default wildcard setting
+The image pins the dsh `0.2.3-alpha.2` prerelease and Node.js `24.22.3`,
+the minimum supported 24.x runtime for this Harness version. The entrypoint translates the default wildcard setting
 to the concrete container address this release requires. A `DSH_VERSION` build
 arg exists, but other releases are untested.
 

@@ -1,8 +1,10 @@
 # DS Bot desktop app
 
-The Electron app for Windows, macOS and Linux. It installs a pinned DeepSeek Harness (DSH 0.2.2-rc.5) and the `ds-bot` plugin of this repository, boots its own DSH profile `ds-bot` through `@deepseek-ai/dsh/profile-boot`, and keeps its data in its own `DSH_HOME`. It never writes to `~/.dsh`. Its window loads DS Bot's own frontend (`ui/dist`), served same-origin by the pure-host `dsbot-engine` bundle (`engine/`) without DSH Web's front end. The design is in [docs/plans/2026-10-16-desktop-app.md](../docs/plans/2026-10-16-desktop-app.md) and [docs/plans/2026-11-21-own-frontend.md](../docs/plans/2026-11-21-own-frontend.md).
+The Electron app for Windows, macOS and Linux. It installs a pinned DeepSeek Harness (DSH 0.2.3-alpha.2 prerelease) and the `ds-bot` plugin of this repository, boots its own DSH profile `ds-bot` through `@deepseek-ai/dsh/profile-boot`, and keeps its data in its own `DSH_HOME`. It never writes to `~/.dsh`. Its window loads DS Bot's own frontend (`ui/dist`), served same-origin by the pure-host `dsbot-engine` bundle (`engine/`) without DSH Web's front end. The design is in [docs/plans/2026-10-16-desktop-app.md](../docs/plans/2026-10-16-desktop-app.md) and [docs/plans/2026-11-21-own-frontend.md](../docs/plans/2026-11-21-own-frontend.md).
 
 ## Run
+
+Source runs need Node.js 24.22.3 or newer 24.x, or Node.js 26.13.1 or later. Packaged apps include their own runtime.
 
 ```sh
 npm ci
@@ -14,7 +16,7 @@ When GitHub downloads are slow, set `ELECTRON_MIRROR=https://npmmirror.com/mirro
 
 `npm run runtime` downloads the runtime payload (Python with the document libraries, a standalone Node, the Office skill assets) into `build/runtime`. On Linux, run it before `npm start`: the Host uses this plain Node to keep sharp's libvips out of Electron's process. On macOS and Windows the payload is optional for source runs; without it only the Office skills are unavailable. `beforePack` prepares the payload for every package.
 
-npm installs `ds-bot` from `../ds-bot` as a copy of its package files (`install-links` in `.npmrc`), so the app runs the plugin of this checkout. Run `npm ci` again after you change `ds-bot` or merge a branch that changes it: while the version stays the same, `npm install` keeps the old copy. `overrides` in `package.json` pins Cordis to 4.1.0 and `dsh-llm`, `dsh-tools` and `dsh-web` to the DSH version; npm does not choose a pre-release to satisfy their `*` ranges.
+npm installs `ds-bot` from `../ds-bot` as a copy of its package files (`install-links` in `.npmrc`), so the app runs the plugin of this checkout. Run `npm ci` again after you change `ds-bot` or merge a branch that changes it: while the version stays the same, `npm install` keeps the old copy. `overrides` in `package.json` pins Cordis to 4.2.0-alpha.1 and `dsh-llm`, `dsh-tools` and `dsh-web` to the DSH version; npm does not choose a pre-release to satisfy their `*` ranges.
 
 | Variable | What it sets | Default |
 |---|---|---|
@@ -27,7 +29,7 @@ Existing installations keep their shell data, browser logins and saved locations
 
 ## Run from source (Windows)
 
-From the repository root, run in PowerShell (Node.js 22.19 or later and npm required):
+From the repository root, run in PowerShell (Node.js 24.22.3 or newer 24.x, or Node.js 26.13.1 or later, and npm required):
 
 ```powershell
 .\start.ps1

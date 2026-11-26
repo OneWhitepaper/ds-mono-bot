@@ -265,7 +265,7 @@ function withProvider(ctx, services, { providerName } = {}) {
     const entry = { module, config }
     fibers.push(entry)
     // The registry mount brings the service up; only the provider mount names a provider.
-    if (String(module?.name ?? '').includes('experimental')) {
+    if (module?.name === '@deepseek-ai/dsh-cua-macos' || module?.name === '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native') {
       services.computerUse ??= { providerName: undefined }
       services.computerUse.providerName = providerName ?? 'fake-provider'
     } else services.computerUse ??= { providerName: undefined }
@@ -325,7 +325,7 @@ test('provider status: occupied, missing, unsupported, error and retry', async (
   // the status says what to install, at the running DSH's version (#1050)
   const { install } = rt.computerStatus()
   assert.equal(install.packages.length, 1)
-  assert.match(install.packages[0], /^@deepseek-ai\/dsh-experimental-[\w-]+@\d/)
+  assert.match(install.packages[0], /^@deepseek-ai\/dsh-(?:cua-macos|experimental-computer-use-cua-driver-native)@\d/)
   assert.equal(install.command, `pnpm add ${install.packages[0]}`)
   // without the registry both packages are missing, and the profile folder is named
   services.profileContext = { dir: '/profiles/desktop' }

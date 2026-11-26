@@ -160,8 +160,12 @@ JS
   }
   assert.ok(ready, 'web server must answer HTTP after ownership migration')
   const logs = docker(['logs', server])
-  const loginUrl = (logs.stdout + logs.stderr).match(/http:\/\/127\.0\.0\.1:3080\/\?token=[^\s]+/)?.[0]
+  const loginUrl = (logs.stdout + logs.stderr).match(/^dsh web: (http:\/\/\S+)$/m)?.[1]
   assert.ok(loginUrl, 'web server must provide a login URL')
+  const loginTarget = new URL(loginUrl)
+  assert.equal(loginTarget.origin, `http://${address}:3080`, 'login URL must target the container listener')
+  assert.equal(loginTarget.pathname, '/')
+  assert.ok(loginTarget.searchParams.has('token'), 'login URL must include its process token')
   docker(['exec', server, 'node', '--input-type=module', '-e', `
     import assert from 'node:assert/strict'
     const login = await fetch(process.argv[1], { redirect: 'manual' })

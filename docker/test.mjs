@@ -159,8 +159,13 @@ JS
     await setTimeout(300)
   }
   assert.ok(ready, 'web server must answer HTTP after ownership migration')
-  const logs = docker(['logs', server])
-  const loginUrl = (logs.stdout + logs.stderr).match(/^dsh web: (http:\/\/\S+)$/m)?.[1]
+  const loginDeadline = Date.now() + 15_000
+  let loginUrl
+  while (loginUrl === undefined && Date.now() < loginDeadline) {
+    const logs = docker(['logs', server])
+    loginUrl = (logs.stdout + logs.stderr).match(/^dsh web: (http:\/\/\S+)$/m)?.[1]
+    if (loginUrl === undefined) await setTimeout(300)
+  }
   assert.ok(loginUrl, 'web server must provide a login URL')
   const loginTarget = new URL(loginUrl)
   assert.equal(loginTarget.origin, `http://${address}:3080`, 'login URL must target the container listener')

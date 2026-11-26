@@ -176,7 +176,7 @@ JS
     const login = await fetch(process.argv[1], { redirect: 'manual' })
     const cookie = login.headers.getSetCookie().map(value => value.split(';')[0]).join('; ')
     assert.ok(cookie, 'login must return a cookie')
-    const response = await fetch('http://127.0.0.1:3080/api/bot', {
+    const response = await fetch(new URL('/api/bot', process.argv[1]), {
       method: 'POST',
       headers: { 'content-type': 'application/json', cookie },
       body: JSON.stringify({ endpoint: 'state', payload: {} }),

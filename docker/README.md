@@ -39,8 +39,8 @@ This builds the local image without pulling a published DS Bot image. The root
 Compose file publishes host port **13080**, and stores data and workspace files
 in `docker/data` and `docker/workspace`.
 
-The log prints a line like `dsh web: http://127.0.0.1:3080/?token=… (LAN:
-http://172.x.x.x:3080/?token=…)`. Take the token from it and open
+The log prints a line like `dsh web: http://172.x.x.x:3080/?token=…`, using
+the container's listen address. Take the token from it and open
 `http://<NAS IP>:13080/?token=…` once in your browser: the token sets a signed
 cookie (valid 30 days, bound to that authority), after which
 `http://<NAS IP>:13080/` opens the UI directly. The printed port is the container's;
